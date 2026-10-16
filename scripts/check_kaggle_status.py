@@ -51,13 +51,22 @@ def main():
         sys.exit(1)
 
     print(f"[*] Checking status for kernel {USER_NAME}/{KERNEL_SLUG}...")
-    res = call_mcp_tool(token, "get_notebook_session_status", {
+    status_res = call_mcp_tool(token, "get_notebook_session_status", {
         "request": {
             "userName": USER_NAME,
             "kernelSlug": KERNEL_SLUG
         }
     })
-    print(f"[*] Response: {json.dumps(res, indent=2)}")
+    print(f"[*] Session Status: {json.dumps(status_res, indent=2)}")
+
+    print(f"[*] Listing output files for {USER_NAME}/{KERNEL_SLUG}...")
+    out_res = call_mcp_tool(token, "list_notebook_session_output", {
+        "request": {
+            "userName": USER_NAME,
+            "kernelSlug": KERNEL_SLUG
+        }
+    })
+    print(f"[*] Output files: {json.dumps(out_res, indent=2)}")
 
 if __name__ == "__main__":
     main()
