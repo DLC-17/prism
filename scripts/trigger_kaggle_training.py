@@ -114,9 +114,9 @@ def run_via_mcp(token: str) -> bool:
     print("[SUCCESS] Notebook successfully submitted and training started on Kaggle!")
     print(f"[*] Tracking URL: https://www.kaggle.com/code/davidc17/{existing_slug}")
 
-    # Monitor status for up to 90 seconds
+    # Monitor status for up to 150 seconds
     print("[*] Monitoring initial execution status...")
-    for i in range(9):
+    for i in range(15):
         time.sleep(10)
         status_res = call_mcp_tool(token, "get_notebook_session_status", {
             "request": {
@@ -129,7 +129,7 @@ def run_via_mcp(token: str) -> bool:
             content = status_res["result"].get("content", [])
             if content:
                 status_text = content[0].get("text", "")
-        print(f"[*] [{i+1}/9] Status check: {status_text}")
+        print(f"[*] [{i+1}/15] Status check: {status_text}")
         if "RUNNING" in status_text:
             print("[*] Training is actively running on Kaggle GPU!")
         elif "COMPLETE" in status_text:
@@ -137,7 +137,14 @@ def run_via_mcp(token: str) -> bool:
             break
         elif "ERROR" in status_text:
             print(f"[!] Error encountered: {status_text}")
-            break
+            out_res = call_mcp_tool(token, "list_notebook_session_output", {
+                "request": {
+                    "userName": "davidc17",
+                    "kernelSlug": existing_slug
+                }
+            })
+            print(f"[*] Session output trace: {json.dumps(out_res, indent=2)}")
+            return False
 
     return True
 
