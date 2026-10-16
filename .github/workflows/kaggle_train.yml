@@ -1,0 +1,23 @@
+name: Launch Kaggle Model Training
+
+on:
+  workflow_dispatch:
+
+jobs:
+  launch-kaggle:
+    runs-on: ubuntu-latest
+    environment: kaggle
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Trigger Kaggle Notebook Training
+        env:
+          KAGGLE_API: ${{ secrets.KAGGLE_API }}
+        run: |
+          python scripts/trigger_kaggle_training.py
