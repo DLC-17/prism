@@ -79,25 +79,25 @@ def main():
                     fname = f.get("file_name", "")
                     furl = f.get("url", "")
                     print(f"    - {fname}")
-                    if fname in ["__notebook__.ipynb", "__results__.html"]:
-                        print(f"[*] Fetching {fname} from {furl[:60]}...")
+                    if fname in ["execution.log", "error.log"]:
+                        print(f"[*] Downloading and displaying {fname}...")
                         try:
                             with urllib.request.urlopen(furl, timeout=30) as r:
-                                content_bytes = r.read()
-                                if fname == "__notebook__.ipynb":
-                                    nb = json.loads(content_bytes.decode("utf-8"))
-                                    for idx, c in enumerate(nb.get("cells", [])):
-                                        for out in c.get("outputs", []):
-                                            if out.get("output_type") == "error":
-                                                ename = out.get("ename")
-                                                evalue = out.get("evalue")
-                                                print(f"[!] ERROR in Cell {idx}: {ename}: {evalue}")
-                                                for tb in out.get("traceback", []):
-                                                    print("    ", tb)
-                                            elif "text" in out:
-                                                print(f"[*] Cell {idx} stdout: {''.join(out['text']).strip()}")
+                                text_data = r.read().decode("utf-8", errors="replace")
+                                print(f"=== {fname} ===\n{text_data}\n=== END {fname} ===")
+                                with open(fname, "w", encoding="utf-8") as out_f:
+                                    out_f.write(text_data)
                         except Exception as e:
                             print(f"[!] Failed to fetch {fname}: {e}")
+                    elif fname in ["submission.tar.gz", "prism_model.pt"]:
+                        print(f"[*] Downloading {fname}...")
+                        try:
+                            with urllib.request.urlopen(furl, timeout=60) as r:
+                                with open(fname, "wb") as out_f:
+                                    out_f.write(r.read())
+                            print(f"[SUCCESS] Downloaded {fname} ({os.path.getsize(fname) / (1024*1024):.2f} MB)")
+                        except Exception as e:
+                            print(f"[!] Failed to download {fname}: {e}")
             except Exception as e:
                 print(f"[!] JSON parse error: {e}")
 

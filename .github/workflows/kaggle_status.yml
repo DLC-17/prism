@@ -21,3 +21,14 @@ jobs:
           KAGGLE_API: ${{ secrets.KAGGLE_API }}
         run: |
           python scripts/check_kaggle_status.py
+
+      - name: Upload Kaggle Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaggle-training-outputs
+          path: |
+            *.pt
+            *.tar.gz
+            *.log
+          if-no-files-found: ignore
