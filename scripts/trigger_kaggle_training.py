@@ -88,9 +88,12 @@ def run_via_mcp(token: str) -> bool:
     }
 
     if existing_id:
-        print(f"[*] Updating existing notebook to Version 2 (Kernel ID={existing_id})...")
+        print(f"[*] Updating existing notebook (Kernel ID={existing_id}, Slug={existing_slug})...")
         save_request["id"] = int(existing_id)
         save_request["hasId"] = True
+        save_request["slug"] = existing_slug
+        save_request["hasSlug"] = True
+
     else:
         run_title = f"{KERNEL_TITLE} (Run {int(time.time())})"
         print(f"[*] Creating new notebook with title: '{run_title}'...")
