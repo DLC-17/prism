@@ -66,7 +66,40 @@ def main():
             "kernelSlug": KERNEL_SLUG
         }
     })
-    print(f"[*] Output files: {json.dumps(out_res, indent=2)}")
+
+    if isinstance(out_res, dict) and "result" in out_res:
+        content = out_res["result"].get("content", [])
+        if content:
+            blob = content[0].get("text", "")
+            try:
+                data = json.loads(blob)
+                files = data.get("files", [])
+                print(f"[*] Found {len(files)} output files:")
+                for f in files:
+                    fname = f.get("file_name", "")
+                    furl = f.get("url", "")
+                    print(f"    - {fname}")
+                    if fname in ["__notebook__.ipynb", "__results__.html"]:
+                        print(f"[*] Fetching {fname} from {furl[:60]}...")
+                        try:
+                            with urllib.request.urlopen(furl, timeout=30) as r:
+                                content_bytes = r.read()
+                                if fname == "__notebook__.ipynb":
+                                    nb = json.loads(content_bytes.decode("utf-8"))
+                                    for idx, c in enumerate(nb.get("cells", [])):
+                                        for out in c.get("outputs", []):
+                                            if out.get("output_type") == "error":
+                                                ename = out.get("ename")
+                                                evalue = out.get("evalue")
+                                                print(f"[!] ERROR in Cell {idx}: {ename}: {evalue}")
+                                                for tb in out.get("traceback", []):
+                                                    print("    ", tb)
+                                            elif "text" in out:
+                                                print(f"[*] Cell {idx} stdout: {''.join(out['text']).strip()}")
+                        except Exception as e:
+                            print(f"[!] Failed to fetch {fname}: {e}")
+            except Exception as e:
+                print(f"[!] JSON parse error: {e}")
 
 if __name__ == "__main__":
     main()
