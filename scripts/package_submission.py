@@ -4,6 +4,7 @@ import os
 import sys
 import shutil
 import tarfile
+import zipfile
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BASE_DIR not in sys.path:
@@ -11,6 +12,7 @@ if BASE_DIR not in sys.path:
 
 STAGING_DIR = os.path.join(BASE_DIR, "build_submission")
 OUTPUT_TAR = os.path.join(BASE_DIR, "submission.tar.gz")
+OUTPUT_ZIP = os.path.join(BASE_DIR, "submission.zip")
 
 
 def package_submission():
@@ -68,9 +70,22 @@ def package_submission():
     tar_size_mb = os.path.getsize(OUTPUT_TAR) / (1024 * 1024)
     print(f"Submission bundle created successfully: {OUTPUT_TAR} ({tar_size_mb:.2f} MB)")
 
+    # 4. Create .zip bundle
+    print(f"Creating {OUTPUT_ZIP}...")
+    with zipfile.ZipFile(OUTPUT_ZIP, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for root, dirs, files in os.walk(STAGING_DIR):
+            for file in files:
+                full_path = os.path.join(root, file)
+                rel_path = os.path.relpath(full_path, STAGING_DIR)
+                zf.write(full_path, arcname=rel_path)
+
+    zip_size_mb = os.path.getsize(OUTPUT_ZIP) / (1024 * 1024)
+    print(f"Submission zip created successfully: {OUTPUT_ZIP} ({zip_size_mb:.2f} MB)")
+
     # Clean up staging dir
     shutil.rmtree(STAGING_DIR)
 
 
 if __name__ == "__main__":
     package_submission()
+

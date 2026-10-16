@@ -8,7 +8,9 @@ target/
 .pytest_cache/
 build_submission/
 submission.tar.gz
+submission.zip
 *.pt
 *.log
 cloud_artifacts/
+
 
