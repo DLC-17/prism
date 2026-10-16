@@ -155,12 +155,14 @@ def run_via_mcp(token: str) -> bool:
             break
         elif "ERROR" in status_text:
             print(f"[!] Error encountered: {status_text}")
+            time.sleep(5)
             out_res = call_mcp_tool(token, "list_notebook_session_output", {
                 "request": {
                     "userName": "davidc17",
                     "kernelSlug": existing_slug
                 }
             })
+            print(f"[*] Raw out_res: {json.dumps(out_res, indent=2)}")
             if isinstance(out_res, dict) and "result" in out_res:
                 content = out_res["result"].get("content", [])
                 if content:
