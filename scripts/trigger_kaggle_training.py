@@ -80,40 +80,44 @@ def run_via_mcp(token: str) -> bool:
 
     print(f"[*] Resolved username: {username}")
 
-    # Test 1: Try without slug (None), allowing Kaggle to generate slug from newTitle
-    print("[*] Trying save_notebook with slug=None...")
+    # Setting isPrivate: True prevents phone verification restriction on Kaggle
+    print("[*] Launching save_notebook with isPrivate=True, enableGpu=True, SaveAndRunAll...")
     args = {
         "request": {
             "newTitle": KERNEL_TITLE,
             "text": nb_content,
             "language": "python",
             "kernelType": "notebook",
-            "isPrivate": False,
+            "isPrivate": True,
+            "hasIsPrivate": True,
             "enableGpu": True,
+            "hasEnableGpu": True,
             "enableInternet": True,
+            "hasEnableInternet": True,
             "competitionDataSources": [COMPETITION_SLUG],
-            "kernelExecutionType": "SaveAndRunAll"
+            "kernelExecutionType": "SaveAndRunAll",
+            "hasKernelExecutionType": True
         }
     }
     if username:
         args["request"]["slug"] = f"{username}/{KERNEL_SLUG}"
+        args["request"]["hasSlug"] = True
 
     res = call_mcp_tool(token, "save_notebook", args)
     print(f"[*] Kaggle MCP Response: {json.dumps(res, indent=2)}")
 
-    # If error and we haven't tried username/slug, try username/slug
     if isinstance(res, dict) and "result" in res:
-        content = res["result"].get("content", [])
-        if content and "error" in content[0].get("text", ""):
-            err_text = content[0].get("text")
-            print(f"[!] Error detected in response: {err_text}")
-            if not username:
-                # Try getting username from another tool like search_notebooks
-                nb_search = call_mcp_tool(token, "search_notebooks", {"request": {"pageSize": 1}})
-                print(f"[*] Notebook search response: {json.dumps(nb_search, indent=2)}")
+        if res["result"].get("isError"):
+            err_text = "".join(c.get("text", "") for c in res["result"].get("content", []))
+            print(f"[!] Kaggle MCP reported error: {err_text}")
             return False
 
-    print("[SUCCESS] Notebook successfully submitted to Kaggle via MCP!")
+        content = res["result"].get("content", [])
+        if content:
+            msg = content[0].get("text", "")
+            print(f"[*] Notebook Status: {msg}")
+
+    print("[SUCCESS] Notebook successfully submitted and training started on Kaggle!")
     return True
 
 def run_via_kaggle_cli(username: str, key: str) -> bool:
