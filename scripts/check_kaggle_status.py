@@ -51,22 +51,29 @@ def main():
         print("[!] KAGGLE_API is not set.")
         sys.exit(1)
 
-    print(f"[*] Checking status for kernel {USER_NAME}/{KERNEL_SLUG}...")
-    status_res = call_mcp_tool(token, "get_notebook_session_status", {
-        "request": {
-            "userName": USER_NAME,
-            "kernelSlug": KERNEL_SLUG
-        }
-    })
-    print(f"[*] Session Status: {json.dumps(status_res, indent=2)}")
+    kernels_to_check = [
+        "prism-ptcg-ai-training-pipeline-run-1792110379",
+        "prism-ptcg-ai-training-pipeline-run-1792134723"
+    ]
+    for slug in kernels_to_check:
+        print(f"\n==========================================")
+        print(f"[*] Checking status for kernel {USER_NAME}/{slug}...")
+        status_res = call_mcp_tool(token, "get_notebook_session_status", {
+            "request": {
+                "userName": USER_NAME,
+                "kernelSlug": slug
+            }
+        })
+        print(f"[*] Session Status ({slug}): {json.dumps(status_res, indent=2)}")
 
-    print(f"[*] Listing output files for {USER_NAME}/{KERNEL_SLUG}...")
-    out_res = call_mcp_tool(token, "list_notebook_session_output", {
-        "request": {
-            "userName": USER_NAME,
-            "kernelSlug": KERNEL_SLUG
-        }
-    })
+        print(f"[*] Listing output files for {USER_NAME}/{slug}...")
+        out_res = call_mcp_tool(token, "list_notebook_session_output", {
+            "request": {
+                "userName": USER_NAME,
+                "kernelSlug": slug
+            }
+        })
+        print(f"[*] Output Files ({slug}): {json.dumps(out_res, indent=2)}")
 
     if isinstance(out_res, dict) and "result" in out_res:
         content = out_res["result"].get("content", [])
