@@ -64,46 +64,72 @@ def run_via_mcp(token: str) -> bool:
     print(f"[*] Attempting to launch notebook via Kaggle MCP ({MCP_URL})...")
     nb_content = get_notebook_content()
 
-    # First, let's see if we can get user info or check user profile
-    user_res = call_mcp_tool(token, "get_user_profile", {"request": {}})
-    print(f"[*] Kaggle user profile response: {json.dumps(user_res, indent=2)}")
+    # Step 1: Search for existing user notebooks to find any existing Prism notebook
+    existing_id = None
+    existing_slug = None
+    for group in ["Profile", "PublicAndUsersPrivate"]:
+        search_res = call_mcp_tool(token, "search_notebooks", {
+            "request": {
+                "group": group,
+                "hasGroup": True,
+                "search": "prism",
+                "hasSearch": True,
+                "pageSize": 10,
+                "hasPageSize": True
+            }
+        })
+        print(f"[*] Search ({group}) result: {json.dumps(search_res, indent=2)}")
+        if isinstance(search_res, dict) and "result" in search_res:
+            content = search_res["result"].get("content", [])
+            for item in content:
+                text_blob = item.get("text", "")
+                try:
+                    data = json.loads(text_blob)
+                    kernels = data.get("kernels") or data.get("notebooks") or []
+                    for k in kernels:
+                        k_title = (k.get("title") or k.get("newTitle") or "").lower()
+                        k_slug = (k.get("slug") or k.get("scriptUrl") or "").lower()
+                        if "prism" in k_title or "prism" in k_slug:
+                            existing_id = k.get("id")
+                            existing_slug = k.get("slug") or k.get("scriptUrl")
+                            print(f"[*] Found existing notebook: ID={existing_id}, Slug={existing_slug}, Title={k.get('title')}")
+                            break
+                except Exception:
+                    pass
+        if existing_id:
+            break
 
-    username = None
-    if isinstance(user_res, dict) and "result" in user_res:
-        content = user_res["result"].get("content", [])
-        if content and isinstance(content[0], dict):
-            try:
-                user_data = json.loads(content[0].get("text", "{}"))
-                username = user_data.get("userName") or user_data.get("username")
-            except Exception:
-                pass
-
-    print(f"[*] Resolved username: {username}")
-
-    # Setting isPrivate: True prevents phone verification restriction on Kaggle
-    print("[*] Launching save_notebook with isPrivate=True, enableGpu=True, SaveAndRunAll...")
-    args = {
-        "request": {
-            "newTitle": KERNEL_TITLE,
-            "text": nb_content,
-            "language": "python",
-            "kernelType": "notebook",
-            "isPrivate": True,
-            "hasIsPrivate": True,
-            "enableGpu": True,
-            "hasEnableGpu": True,
-            "enableInternet": True,
-            "hasEnableInternet": True,
-            "competitionDataSources": [COMPETITION_SLUG],
-            "kernelExecutionType": "SaveAndRunAll",
-            "hasKernelExecutionType": True
-        }
+    # Step 2: Formulate save_notebook request
+    save_request = {
+        "text": nb_content,
+        "hasText": True,
+        "language": "python",
+        "hasLanguage": True,
+        "kernelType": "notebook",
+        "hasKernelType": True,
+        "isPrivate": True,
+        "hasIsPrivate": True,
+        "enableGpu": True,
+        "hasEnableGpu": True,
+        "enableInternet": True,
+        "hasEnableInternet": True,
+        "competitionDataSources": [COMPETITION_SLUG],
+        "kernelExecutionType": "SaveAndRunAll",
+        "hasKernelExecutionType": True
     }
-    if username:
-        args["request"]["slug"] = f"{username}/{KERNEL_SLUG}"
-        args["request"]["hasSlug"] = True
 
-    res = call_mcp_tool(token, "save_notebook", args)
+    if existing_id:
+        print(f"[*] Updating existing notebook (ID={existing_id})...")
+        save_request["id"] = int(existing_id)
+        save_request["hasId"] = True
+    else:
+        # Generate a unique title with run timestamp to guarantee freshness
+        run_title = f"{KERNEL_TITLE} (Run {int(time.time())})"
+        print(f"[*] Creating new notebook with title: '{run_title}'...")
+        save_request["newTitle"] = run_title
+        save_request["hasNewTitle"] = True
+
+    res = call_mcp_tool(token, "save_notebook", {"request": save_request})
     print(f"[*] Kaggle MCP Response: {json.dumps(res, indent=2)}")
 
     if isinstance(res, dict) and "result" in res:
