@@ -82,6 +82,15 @@ def main():
     ]
     for slug in kernels_to_check:
         print(f"\n==========================================")
+        print(f"[*] Getting notebook info for {USER_NAME}/{slug}...")
+        info_res = call_mcp_tool(token, "get_notebook_info", {
+            "request": {
+                "userName": USER_NAME,
+                "kernelSlug": slug
+            }
+        })
+        print(f"[*] Notebook Info ({slug}): {json.dumps(info_res, indent=2)}")
+
         print(f"[*] Checking status for kernel {USER_NAME}/{slug}...")
         status_res = call_mcp_tool(token, "get_notebook_session_status", {
             "request": {
