@@ -131,10 +131,12 @@ def run_via_mcp(token: str) -> bool:
         run_title = "Prism PTCG AI Training Pipeline (Run 1792110379)"
         print(f"[*] Creating notebook with title: '{run_title}'...")
         save_request["newTitle"] = run_title
-        save_request["hasNewTitle"] = True
+    res = call_mcp_tool(token, "save_notebook", {"request": save_request})
+    print(f"[*] Kaggle MCP Response: {json.dumps(res, indent=2)}")
 
     def check_response_error(r):
         if not isinstance(r, dict) or "result" not in r:
+
             return True, "Invalid response"
         if r["result"].get("isError"):
             return True, "".join(c.get("text", "") for c in r["result"].get("content", []))
