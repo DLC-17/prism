@@ -1,0 +1,23 @@
+name: Check Kaggle Training Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-status:
+    runs-on: ubuntu-latest
+    environment: kaggle
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Query Kaggle Session Status via MCP
+        env:
+          KAGGLE_API: ${{ secrets.KAGGLE_API }}
+        run: |
+          python scripts/check_kaggle_status.py
