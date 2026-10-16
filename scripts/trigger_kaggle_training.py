@@ -133,44 +133,61 @@ def run_via_mcp(token: str) -> bool:
         save_request["newTitle"] = run_title
         save_request["hasNewTitle"] = True
 
-    res = call_mcp_tool(token, "save_notebook", {"request": save_request})
-    print(f"[*] Kaggle MCP Response: {json.dumps(res, indent=2)}")
-
-    if isinstance(res, dict) and "result" in res and res["result"].get("isError"):
-        err_text = "".join(c.get("text", "") for c in res["result"].get("content", []))
-        if "not found" in err_text.lower():
-            print(f"[!] ID update failed with 'Not found'. Attempting fallback with slug '{target_slug}'...")
-            fallback_request = dict(save_request)
-            fallback_request.pop("id", None)
-            fallback_request.pop("hasId", None)
-            fallback_request["slug"] = target_slug
-            fallback_request["hasSlug"] = True
-            res = call_mcp_tool(token, "save_notebook", {"request": fallback_request})
-            print(f"[*] Fallback Kaggle MCP Response: {json.dumps(res, indent=2)}")
-
-        if isinstance(res, dict) and "result" in res and res["result"].get("isError"):
-            print(f"[!] Slug fallback failed. Attempting creation/update with newTitle...")
-            create_request = dict(save_request)
-            create_request.pop("id", None)
-            create_request.pop("hasId", None)
-            create_request.pop("slug", None)
-            create_request.pop("hasSlug", None)
-            create_request["newTitle"] = "Prism PTCG AI Training Pipeline (Run 1792110379)"
-            create_request["hasNewTitle"] = True
-            res = call_mcp_tool(token, "save_notebook", {"request": create_request})
-            print(f"[*] Title fallback Kaggle MCP Response: {json.dumps(res, indent=2)}")
-
-    if isinstance(res, dict) and "result" in res:
-        if res["result"].get("isError"):
-            err_text = "".join(c.get("text", "") for c in res["result"].get("content", []))
-            print(f"[!] Kaggle MCP reported error: {err_text}")
-            return False
-
-
-        content = res["result"].get("content", [])
+    def check_response_error(r):
+        if not isinstance(r, dict) or "result" not in r:
+            return True, "Invalid response"
+        if r["result"].get("isError"):
+            return True, "".join(c.get("text", "") for c in r["result"].get("content", []))
+        content = r["result"].get("content", [])
         if content:
-            msg = content[0].get("text", "")
-            print(f"[*] Notebook Status: {msg}")
+            t = content[0].get("text", "")
+            try:
+                p = json.loads(t)
+                if isinstance(p, dict) and "error" in p:
+                    return True, str(p["error"])
+            except Exception:
+                pass
+        return False, ""
+
+    is_err, err_msg = check_response_error(res)
+    if is_err:
+        print(f"[!] Initial save attempt failed: {err_msg}")
+        print(f"[*] Attempting save with newTitle '{target_slug}'...")
+        title_request = dict(save_request)
+        title_request.pop("id", None)
+        title_request.pop("hasId", None)
+        title_request["newTitle"] = "Prism PTCG AI Training Pipeline (Run 1792110379)"
+        title_request["hasNewTitle"] = True
+        res = call_mcp_tool(token, "save_notebook", {"request": title_request})
+        print(f"[*] Title fallback response: {json.dumps(res, indent=2)}")
+        is_err, err_msg = check_response_error(res)
+
+    if is_err:
+        print(f"[!] Target title failed: {err_msg}. Attempting fresh run title...")
+        fresh_request = dict(save_request)
+        fresh_request.pop("id", None)
+        fresh_request.pop("hasId", None)
+        fresh_request["newTitle"] = f"{KERNEL_TITLE} (Run {int(time.time())})"
+        fresh_request["hasNewTitle"] = True
+        res = call_mcp_tool(token, "save_notebook", {"request": fresh_request})
+        print(f"[*] Fresh run response: {json.dumps(res, indent=2)}")
+        is_err, err_msg = check_response_error(res)
+
+    if is_err:
+        print(f"[!] Kaggle MCP reported error: {err_msg}")
+        return False
+
+    content = res["result"].get("content", [])
+    if content:
+        msg = content[0].get("text", "")
+        print(f"[*] Notebook Status: {msg}")
+        try:
+            parsed_info = json.loads(msg)
+            if isinstance(parsed_info, dict) and "url" in parsed_info:
+                existing_slug = parsed_info["url"].split("/")[-1]
+                print(f"[*] Updated tracking slug to: {existing_slug}")
+        except Exception:
+            pass
 
     print("[SUCCESS] Notebook successfully submitted and training started on Kaggle!")
     print(f"[*] Tracking URL: https://www.kaggle.com/code/davidc17/{existing_slug}")
@@ -178,6 +195,7 @@ def run_via_mcp(token: str) -> bool:
     # Monitor status for up to 150 seconds
     print("[*] Monitoring initial execution status...")
     for i in range(15):
+
         time.sleep(10)
         status_res = call_mcp_tool(token, "get_notebook_session_status", {
             "request": {
