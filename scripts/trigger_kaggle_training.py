@@ -64,10 +64,27 @@ def run_via_mcp(token: str) -> bool:
     print(f"[*] Attempting to launch notebook via Kaggle MCP ({MCP_URL})...")
     nb_content = get_notebook_content()
 
+    # First, let's see if we can get user info or check user profile
+    user_res = call_mcp_tool(token, "get_user_profile", {"request": {}})
+    print(f"[*] Kaggle user profile response: {json.dumps(user_res, indent=2)}")
+
+    username = None
+    if isinstance(user_res, dict) and "result" in user_res:
+        content = user_res["result"].get("content", [])
+        if content and isinstance(content[0], dict):
+            try:
+                user_data = json.loads(content[0].get("text", "{}"))
+                username = user_data.get("userName") or user_data.get("username")
+            except Exception:
+                pass
+
+    print(f"[*] Resolved username: {username}")
+
+    # Test 1: Try without slug (None), allowing Kaggle to generate slug from newTitle
+    print("[*] Trying save_notebook with slug=None...")
     args = {
         "request": {
             "newTitle": KERNEL_TITLE,
-            "slug": KERNEL_SLUG,
             "text": nb_content,
             "language": "python",
             "kernelType": "notebook",
@@ -78,13 +95,23 @@ def run_via_mcp(token: str) -> bool:
             "kernelExecutionType": "SaveAndRunAll"
         }
     }
+    if username:
+        args["request"]["slug"] = f"{username}/{KERNEL_SLUG}"
 
     res = call_mcp_tool(token, "save_notebook", args)
     print(f"[*] Kaggle MCP Response: {json.dumps(res, indent=2)}")
 
-    if "error" in res or (isinstance(res, dict) and res.get("isError")):
-        print(f"[!] MCP Save Failed: {res.get('error')}")
-        return False
+    # If error and we haven't tried username/slug, try username/slug
+    if isinstance(res, dict) and "result" in res:
+        content = res["result"].get("content", [])
+        if content and "error" in content[0].get("text", ""):
+            err_text = content[0].get("text")
+            print(f"[!] Error detected in response: {err_text}")
+            if not username:
+                # Try getting username from another tool like search_notebooks
+                nb_search = call_mcp_tool(token, "search_notebooks", {"request": {"pageSize": 1}})
+                print(f"[*] Notebook search response: {json.dumps(nb_search, indent=2)}")
+            return False
 
     print("[SUCCESS] Notebook successfully submitted to Kaggle via MCP!")
     return True
