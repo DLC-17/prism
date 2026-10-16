@@ -30,13 +30,14 @@ def generate_synthetic_training_batch(batch_size: int = 32, device: str = "cpu")
 
     # Legality mask with some legal slots (0.0) and others (-inf)
     legality_mask = torch.full((batch_size, 64), -float("inf"), device=device)
+    target_entity = torch.empty(batch_size, dtype=torch.long, device=device)
     for b in range(batch_size):
         legal_indices = np.random.choice(64, size=8, replace=False)
         legality_mask[b, legal_indices] = 0.0
+        target_entity[b] = int(np.random.choice(legal_indices))
 
     # Target labels
     target_macro = torch.randint(0, 7, (batch_size,), device=device)
-    target_entity = torch.randint(0, 64, (batch_size,), device=device)
     target_v_game = torch.tanh(torch.randn(batch_size, 1, device=device))
     target_v_match = torch.tanh(torch.randn(batch_size, 1, device=device))
 
