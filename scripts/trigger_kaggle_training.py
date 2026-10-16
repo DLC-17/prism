@@ -64,40 +64,9 @@ def run_via_mcp(token: str) -> bool:
     print(f"[*] Attempting to launch notebook via Kaggle MCP ({MCP_URL})...")
     nb_content = get_notebook_content()
 
-    # Step 1: Search for existing user notebooks to find any existing Prism notebook
-    existing_id = None
-    existing_slug = None
-    for group in ["Profile", "PublicAndUsersPrivate"]:
-        search_res = call_mcp_tool(token, "search_notebooks", {
-            "request": {
-                "group": group,
-                "hasGroup": True,
-                "search": "prism",
-                "hasSearch": True,
-                "pageSize": 10,
-                "hasPageSize": True
-            }
-        })
-        print(f"[*] Search ({group}) result: {json.dumps(search_res, indent=2)}")
-        if isinstance(search_res, dict) and "result" in search_res:
-            content = search_res["result"].get("content", [])
-            for item in content:
-                text_blob = item.get("text", "")
-                try:
-                    data = json.loads(text_blob)
-                    kernels = data.get("kernels") or data.get("notebooks") or []
-                    for k in kernels:
-                        k_title = (k.get("title") or k.get("newTitle") or "").lower()
-                        k_slug = (k.get("slug") or k.get("scriptUrl") or "").lower()
-                        if "prism" in k_title or "prism" in k_slug:
-                            existing_id = k.get("id")
-                            existing_slug = k.get("slug") or k.get("scriptUrl")
-                            print(f"[*] Found existing notebook: ID={existing_id}, Slug={existing_slug}, Title={k.get('title')}")
-                            break
-                except Exception:
-                    pass
-        if existing_id:
-            break
+    # Step 1: Use known kernel ID or search for existing notebook
+    existing_id = 138940832
+    existing_slug = "prism-ptcg-ai-training-pipeline-run-1792110379"
 
     # Step 2: Formulate save_notebook request
     save_request = {
@@ -119,11 +88,10 @@ def run_via_mcp(token: str) -> bool:
     }
 
     if existing_id:
-        print(f"[*] Updating existing notebook (ID={existing_id})...")
+        print(f"[*] Updating existing notebook to Version 2 (Kernel ID={existing_id})...")
         save_request["id"] = int(existing_id)
         save_request["hasId"] = True
     else:
-        # Generate a unique title with run timestamp to guarantee freshness
         run_title = f"{KERNEL_TITLE} (Run {int(time.time())})"
         print(f"[*] Creating new notebook with title: '{run_title}'...")
         save_request["newTitle"] = run_title
@@ -144,6 +112,33 @@ def run_via_mcp(token: str) -> bool:
             print(f"[*] Notebook Status: {msg}")
 
     print("[SUCCESS] Notebook successfully submitted and training started on Kaggle!")
+    print(f"[*] Tracking URL: https://www.kaggle.com/code/davidc17/{existing_slug}")
+
+    # Monitor status for up to 90 seconds
+    print("[*] Monitoring initial execution status...")
+    for i in range(9):
+        time.sleep(10)
+        status_res = call_mcp_tool(token, "get_notebook_session_status", {
+            "request": {
+                "userName": "davidc17",
+                "kernelSlug": existing_slug
+            }
+        })
+        status_text = ""
+        if isinstance(status_res, dict) and "result" in status_res:
+            content = status_res["result"].get("content", [])
+            if content:
+                status_text = content[0].get("text", "")
+        print(f"[*] [{i+1}/9] Status check: {status_text}")
+        if "RUNNING" in status_text:
+            print("[*] Training is actively running on Kaggle GPU!")
+        elif "COMPLETE" in status_text:
+            print("[SUCCESS] Training completed successfully!")
+            break
+        elif "ERROR" in status_text:
+            print(f"[!] Error encountered: {status_text}")
+            break
+
     return True
 
 def run_via_kaggle_cli(username: str, key: str) -> bool:
