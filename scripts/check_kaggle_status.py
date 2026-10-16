@@ -51,6 +51,31 @@ def main():
         print("[!] KAGGLE_API is not set.")
         sys.exit(1)
 
+    print("[*] Searching notebooks with query 'prism'...")
+    search_res = call_mcp_tool(token, "search_notebooks", {
+        "request": {
+            "group": "Profile",
+            "hasGroup": True,
+            "search": "prism",
+            "hasSearch": True,
+            "pageSize": 10,
+            "hasPageSize": True
+        }
+    })
+    print(f"[*] Search Results (Profile): {json.dumps(search_res, indent=2)}")
+
+    search_res2 = call_mcp_tool(token, "search_notebooks", {
+        "request": {
+            "group": "PublicAndUsersPrivate",
+            "hasGroup": True,
+            "search": "prism",
+            "hasSearch": True,
+            "pageSize": 10,
+            "hasPageSize": True
+        }
+    })
+    print(f"[*] Search Results (PublicAndUsersPrivate): {json.dumps(search_res2, indent=2)}")
+
     kernels_to_check = [
         "prism-ptcg-ai-training-pipeline-run-1792110379",
         "prism-ptcg-ai-training-pipeline-run-1792134723"
