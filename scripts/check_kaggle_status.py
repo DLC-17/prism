@@ -9,7 +9,8 @@ import urllib.error
 
 MCP_URL = "https://www.kaggle.com/mcp"
 USER_NAME = "davidc17"
-KERNEL_SLUG = "prism-ptcg-ai-training-pipeline-run-1792110379"
+KERNEL_SLUG = "prism-ptcg-ai-training-pipeline-run-1792134723"
+
 
 def call_mcp_tool(bearer_token: str, tool_name: str, arguments: dict):
     req_body = json.dumps({
