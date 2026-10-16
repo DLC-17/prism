@@ -66,43 +66,27 @@ def run_via_mcp(token: str) -> bool:
 
     # Step 1: Discover or verify existing notebook
     target_slug = "prism-ptcg-ai-training-pipeline-run-1792110379"
-    existing_id = 138940832
+    existing_id = 138980224
     existing_slug = target_slug
 
-    print(f"[*] Searching for notebook with slug '{target_slug}' or query 'prism'...")
-    for group in ["Profile", "PublicAndUsersPrivate"]:
-        search_res = call_mcp_tool(token, "search_notebooks", {
-            "request": {
-                "group": group,
-                "hasGroup": True,
-                "search": "prism",
-                "hasSearch": True,
-                "pageSize": 10,
-                "hasPageSize": True
-            }
-        })
-        if isinstance(search_res, dict) and "result" in search_res:
-            content = search_res["result"].get("content", [])
-            for item in content:
-                text_blob = item.get("text", "")
-                try:
-                    data = json.loads(text_blob)
-                    kernels = data.get("kernels") or data.get("notebooks") or []
-                    for k in kernels:
-                        print(f"[*] Raw candidate: {json.dumps(k)}")
-                        cand_id = k.get("id") or k.get("scriptId") or k.get("kernelId") or k.get("script_id")
-                        cand_slug = k.get("slug") or k.get("scriptUrl") or k.get("url") or ""
-                        cand_title = k.get("title") or k.get("newTitle") or ""
-                        if "1792110379" in cand_title or "1792110379" in str(cand_slug) or target_slug in str(cand_slug):
-                            if cand_id:
-                                existing_id = cand_id
-                                existing_slug = cand_slug or target_slug
-                                print(f"[SUCCESS] Matched target kernel: ID={existing_id}, Slug={existing_slug}")
-                                break
-                except Exception as e:
-                    pass
-        if existing_id and existing_id != 138940832:
-            break
+    print(f"[*] Querying notebook info for {target_slug}...")
+    info_res = call_mcp_tool(token, "get_notebook_info", {
+        "request": {
+            "userName": "davidc17",
+            "kernelSlug": target_slug
+        }
+    })
+    if isinstance(info_res, dict) and "result" in info_res:
+        content = info_res["result"].get("content", [])
+        if content:
+            try:
+                data = json.loads(content[0].get("text", ""))
+                meta = data.get("metadata", {})
+                if meta.get("id"):
+                    existing_id = int(meta["id"])
+                    print(f"[SUCCESS] Discovered kernel ID from get_notebook_info: {existing_id}")
+            except Exception as e:
+                print(f"[!] Parse error from get_notebook_info: {e}")
 
     # Step 2: Formulate save_notebook request
     save_request = {
