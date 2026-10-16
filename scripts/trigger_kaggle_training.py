@@ -89,17 +89,19 @@ def run_via_mcp(token: str) -> bool:
                     data = json.loads(text_blob)
                     kernels = data.get("kernels") or data.get("notebooks") or []
                     for k in kernels:
-                        k_slug = (k.get("slug") or k.get("scriptUrl") or "").lower()
-                        k_title = (k.get("title") or k.get("newTitle") or "").lower()
-                        print(f"[*] Found candidate: ID={k.get('id')}, Slug={k_slug}, Title={k.get('title')}")
-                        if target_slug in k_slug or "1792110379" in k_slug:
-                            existing_id = k.get("id")
-                            existing_slug = k.get("slug") or k.get("scriptUrl")
-                            print(f"[SUCCESS] Matched target kernel: ID={existing_id}, Slug={existing_slug}")
-                            break
+                        print(f"[*] Raw candidate: {json.dumps(k)}")
+                        cand_id = k.get("id") or k.get("scriptId") or k.get("kernelId") or k.get("script_id")
+                        cand_slug = k.get("slug") or k.get("scriptUrl") or k.get("url") or ""
+                        cand_title = k.get("title") or k.get("newTitle") or ""
+                        if "1792110379" in cand_title or "1792110379" in str(cand_slug) or target_slug in str(cand_slug):
+                            if cand_id:
+                                existing_id = cand_id
+                                existing_slug = cand_slug or target_slug
+                                print(f"[SUCCESS] Matched target kernel: ID={existing_id}, Slug={existing_slug}")
+                                break
                 except Exception as e:
                     pass
-        if existing_id != 138940832:
+        if existing_id and existing_id != 138940832:
             break
 
     # Step 2: Formulate save_notebook request
@@ -126,20 +128,44 @@ def run_via_mcp(token: str) -> bool:
         save_request["id"] = int(existing_id)
         save_request["hasId"] = True
     else:
-        run_title = f"{KERNEL_TITLE} (Run {int(time.time())})"
-        print(f"[*] Creating new notebook with title: '{run_title}'...")
+        run_title = "Prism PTCG AI Training Pipeline (Run 1792110379)"
+        print(f"[*] Creating notebook with title: '{run_title}'...")
         save_request["newTitle"] = run_title
         save_request["hasNewTitle"] = True
 
     res = call_mcp_tool(token, "save_notebook", {"request": save_request})
     print(f"[*] Kaggle MCP Response: {json.dumps(res, indent=2)}")
 
+    if isinstance(res, dict) and "result" in res and res["result"].get("isError"):
+        err_text = "".join(c.get("text", "") for c in res["result"].get("content", []))
+        if "not found" in err_text.lower():
+            print(f"[!] ID update failed with 'Not found'. Attempting fallback with slug '{target_slug}'...")
+            fallback_request = dict(save_request)
+            fallback_request.pop("id", None)
+            fallback_request.pop("hasId", None)
+            fallback_request["slug"] = target_slug
+            fallback_request["hasSlug"] = True
+            res = call_mcp_tool(token, "save_notebook", {"request": fallback_request})
+            print(f"[*] Fallback Kaggle MCP Response: {json.dumps(res, indent=2)}")
+
+        if isinstance(res, dict) and "result" in res and res["result"].get("isError"):
+            print(f"[!] Slug fallback failed. Attempting creation/update with newTitle...")
+            create_request = dict(save_request)
+            create_request.pop("id", None)
+            create_request.pop("hasId", None)
+            create_request.pop("slug", None)
+            create_request.pop("hasSlug", None)
+            create_request["newTitle"] = "Prism PTCG AI Training Pipeline (Run 1792110379)"
+            create_request["hasNewTitle"] = True
+            res = call_mcp_tool(token, "save_notebook", {"request": create_request})
+            print(f"[*] Title fallback Kaggle MCP Response: {json.dumps(res, indent=2)}")
 
     if isinstance(res, dict) and "result" in res:
         if res["result"].get("isError"):
             err_text = "".join(c.get("text", "") for c in res["result"].get("content", []))
             print(f"[!] Kaggle MCP reported error: {err_text}")
             return False
+
 
         content = res["result"].get("content", [])
         if content:
