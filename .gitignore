@@ -10,3 +10,5 @@ build_submission/
 submission.tar.gz
 *.pt
 *.log
+cloud_artifacts/
+
