@@ -134,6 +134,24 @@ def run_via_mcp(token: str) -> bool:
             print("[*] Training is actively running on Kaggle GPU!")
         elif "COMPLETE" in status_text:
             print("[SUCCESS] Training completed successfully!")
+            out_res = call_mcp_tool(token, "list_notebook_session_output", {
+                "request": {
+                    "userName": "davidc17",
+                    "kernelSlug": existing_slug
+                }
+            })
+            if isinstance(out_res, dict) and "result" in out_res:
+                content = out_res["result"].get("content", [])
+                if content:
+                    try:
+                        data = json.loads(content[0].get("text", ""))
+                        for f in data.get("files", []):
+                            if f.get("file_name") == "execution.log":
+                                print("[*] Execution Log:")
+                                with urllib.request.urlopen(f.get("url"), timeout=20) as r:
+                                    print(r.read().decode("utf-8", errors="replace"))
+                    except Exception:
+                        pass
             break
         elif "ERROR" in status_text:
             print(f"[!] Error encountered: {status_text}")
@@ -143,7 +161,18 @@ def run_via_mcp(token: str) -> bool:
                     "kernelSlug": existing_slug
                 }
             })
-            print(f"[*] Session output trace: {json.dumps(out_res, indent=2)}")
+            if isinstance(out_res, dict) and "result" in out_res:
+                content = out_res["result"].get("content", [])
+                if content:
+                    try:
+                        data = json.loads(content[0].get("text", ""))
+                        for f in data.get("files", []):
+                            if f.get("file_name") in ["execution.log", "error.log"]:
+                                print(f"[*] Output file '{f.get('file_name')}':")
+                                with urllib.request.urlopen(f.get("url"), timeout=20) as r:
+                                    print(r.read().decode("utf-8", errors="replace"))
+                    except Exception as e:
+                        print(f"[!] Log fetch error: {e}")
             return False
 
     return True
