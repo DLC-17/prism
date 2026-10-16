@@ -21,7 +21,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["models*", "inference*", "engine*"]
+include = ["models*", "inference*", "engine*", "training*", "submission*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

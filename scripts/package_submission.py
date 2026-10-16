@@ -21,16 +21,16 @@ def package_submission():
 
     # 1. Copy main.py and deck.csv to top-level
     shutil.copy(
-        os.path.join(BASE_DIR, "kaggle", "submission", "main.py"),
+        os.path.join(BASE_DIR, "submission", "main.py"),
         os.path.join(STAGING_DIR, "main.py"),
     )
     shutil.copy(
-        os.path.join(BASE_DIR, "kaggle", "submission", "deck.csv"),
+        os.path.join(BASE_DIR, "submission", "deck.csv"),
         os.path.join(STAGING_DIR, "deck.csv"),
     )
 
     # Copy weights if available
-    weights_src = os.path.join(BASE_DIR, "kaggle", "submission", "prism_model.pt")
+    weights_src = os.path.join(BASE_DIR, "submission", "prism_model.pt")
     if os.path.exists(weights_src):
         shutil.copy(weights_src, os.path.join(STAGING_DIR, "prism_model.pt"))
     else:

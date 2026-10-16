@@ -119,7 +119,7 @@ def train_prism(
     print(f"Model checkpoint saved successfully to {save_path}")
 
     # Also copy to submission directory
-    sub_weights = os.path.join(BASE_DIR, "kaggle", "submission", "prism_model.pt")
+    sub_weights = os.path.join(BASE_DIR, "submission", "prism_model.pt")
     torch.save(model.state_dict(), sub_weights)
     print(f"Copied weights to submission package: {sub_weights}")
 

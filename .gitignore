@@ -9,3 +9,4 @@ target/
 build_submission/
 submission.tar.gz
 *.pt
+*.log
